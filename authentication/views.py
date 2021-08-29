@@ -5,6 +5,16 @@ from django.http import JsonResponse
 from django.contrib.auth.models import User
 from validate_email import validate_email
 from django.contrib import messages
+from django.core.mail import EmailMessage
+from django.contrib import auth
+from django.contrib.sites.shortcuts import get_current_site
+from django.utils.encoding import force_bytes, force_text, DjangoUnicodeDecodeError
+from django.core.mail import send_mail
+from django.contrib.sites.shortcuts import get_current_site
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.template.loader import render_to_string
+from .utils import account_activation_token
+from django.urls import reverse
 
 # Create your views here.
 class RegistrationView(View):
@@ -56,6 +66,29 @@ class RegistrationView(View):
                 return render(request, 'authentication/register.html')
 
         return render(request, 'authentication/register.html')
+
+
+class VerificationView(View):
+    def get(self, request, uidb64, token):
+        try:
+            id = force_text(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=id)
+
+            if not account_activation_token.check_token(user, token):
+                return redirect('login'+'?message='+'User already activated')
+
+            if user.is_active:
+                return redirect('login')
+            user.is_active = True
+            user.save()
+
+            messages.success(request, 'Account activated successfully')
+            return redirect('login')
+
+        except Exception as ex:
+            pass
+
+        return redirect('login')
 
 
 
